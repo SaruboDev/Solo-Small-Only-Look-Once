@@ -102,22 +102,6 @@ def get_loader(
 
     # file = "VOC2012/Annotations/2007_000323.xml" # For test purposes
 
-    """
-    NOTE
-    - Bisogna calcolare x e y come valori 0.0/1.0 dentro la cella specifica
-    - Bisogna calcolare w e h come valori non normalizzati, sono la grandezza effettiva della cella.
-    - Il risultato deve essere un array di shape (classi + bbox * 5, grid Y, grid X)
-        dove classi + bbox * 5 è un'altro array.
-    - L'array classi + bbox * 5 è semplicemente un Array di 0.0 di shape (20, )
-        tranne 1.0 dove è effettivamente la classe.
-    - Array bbox * 5 dove abbiamo (x_center, y_center, w?, h?, confidence) dove:
-      - confidence è 1.0, perchè questo array viene applicato SOLO nella cella corretta,
-        sennò è tutto 0.0
-
-    Bisogna evitare overwriting.
-    Si può iterare sulla dim dei bbox e controllare se c'è un valore confidence == 0.0, la puoi scrivere.
-    """
-
     def grab_data_from_file(file):
         """
         Grabs the needed variables from the .xml file.
@@ -213,7 +197,6 @@ def get_loader(
             return None, (None, None)
     
     for file in tqdm(sorted(annotation_path.iterdir())):
-        # NOTE: Gotta check if i'm calculating with the right sizes (pre-rescaling, then scaling).
         
         #####################
         ### Data Retrieve ###
@@ -281,126 +264,6 @@ def get_loader(
         filepath = images_path / filename
         df.add(filepath, final_array)
 
-    ################
-    ### Old Code ###
-    ################
-
-    # for file in tqdm(sorted(annotation_path.iterdir())):
-    #     tree = et.parse(file).getroot()
-
-    #     filename    = tree.find(".//filename").text
-    #     class_name  = tree.findall("object/name")
-    #     minX = tree.findall("object/bndbox/xmin")
-    #     maxX = tree.findall("object/bndbox/xmax")
-    #     minY = tree.findall("object/bndbox/ymin")
-    #     maxY = tree.findall("object/bndbox/ymax")
-
-    #     width   = int(tree.find("size/width").text)
-    #     height  = int(tree.find("size/height").text)
-
-    #     classes = [i.text for i in class_name]
-    #     class_name = [map.get(i, -1) for i in classes]
-
-    #     def norm_coords(minX, maxX, minY, maxY):
-    #         norm_minX = minX * (image_w / width)
-    #         norm_maxX = maxX * (image_w / width)
-    #         norm_minY = minY * (image_h / height)
-    #         norm_maxY = maxY * (image_h / height)
-    #         return norm_minX, norm_maxX, norm_minY, norm_maxY
-        
-    #     new_minX = []
-    #     new_maxX = []
-    #     new_minY = []
-    #     new_maxY = []
-    #     if type(minX) == list:
-    #         for idx, _ in enumerate(minX):
-    #             c_minX = float(minX[idx].text)
-    #             c_maxX = float(maxX[idx].text)
-    #             c_minY = float(minY[idx].text)
-    #             c_maxY = float(maxY[idx].text)
-    #             norm_minX, norm_maxX, norm_minY, norm_maxY = norm_coords(c_minX, c_maxX, c_minY, c_maxY)
-    #             new_minX.append(norm_minX)
-    #             new_maxX.append(norm_maxX)
-    #             new_minY.append(norm_minY)
-    #             new_maxY.append(norm_maxY)
-    #     else:
-    #         norm_minX, norm_maxX, norm_minY, norm_maxY = norm_coords(minX, maxX, minY, maxY)
-    #         new_minX.append(norm_minX)
-    #         new_maxX.append(norm_maxX)
-    #         new_minY.append(norm_minY)
-    #         new_maxY.append(norm_maxY)
-
-    #     def pad_data(classes, minX, maxX, minY, maxY):
-    #         pad = max_objects - len(classes)
-    #         if pad > 0:
-    #             classes += [-1] * pad
-    #             minX    += [-1] * pad
-    #             maxX    += [-1] * pad
-    #             minY    += [-1] * pad
-    #             maxY    += [-1] * pad
-    #         else:
-    #             classes = classes[:max_objects]
-    #             minX = minX[:max_objects]
-    #             maxX = maxX[:max_objects]
-    #             minY = minY[:max_objects]
-    #             maxY = maxY[:max_objects]
-    #         return classes, minX, maxX, minY, maxY
-        
-    #     classes, minX, maxX, minY, maxY = pad_data(class_name, new_minX, new_maxX, new_minY, new_maxY)
-
-    #     def get_cell_labels(minX, maxX, minY, maxY, class_number):
-    #         """
-    #         For every idx found, it's an entirely new object. So we build them separately.
-    #         Considering we're inside a main loop where each file is searched, we're actually doing
-    #         one operation for every one found. coords are padded to the max_objects, which is the
-    #         bbox value B we need.
-    #         Meaning that in this function, we're making the ohe for each object one each call.
-
-    #         """
-    #         if minX == -1 or class_number == -1:
-    #             return None, (None, None)
-    #         center_x = ((minX + maxX) / 2) / image_w
-    #         center_y = ((minY + maxY) / 2) / image_h
-    #         center_cell_x = center_x * grid_size_x
-    #         center_cell_y = center_y * grid_size_y
-
-    #         center_img_x = center_cell_x - int(center_cell_x)
-    #         center_img_y = center_cell_y - int(center_cell_y)
-
-    #         w = (maxX - minX) / image_w
-    #         h = (maxY - minY) / image_h
-
-    #         ohe = jnp.zeros(shape = (n_classes_predict,)).at[class_number].set(1.0)
-    #         locality = jnp.array([center_img_x, center_img_y, w, h, 1.0])
-
-    #         cells = jnp.concatenate([
-    #             jnp.tile(locality, bbox),
-    #             ohe
-    #         ], axis = 0)
-    #         return cells, (int(center_cell_y), int(center_cell_x))
-
-    #     object_label = jnp.zeros(shape = (grid_size_y, grid_size_x, out_classes))
-
-    #     # if type(minX) == list:
-    #     for idx, _ in enumerate(minX):
-    #         label, pos = get_cell_labels(
-    #             minX[idx],
-    #             maxX[idx],
-    #             minY[idx],
-    #             maxY[idx],
-    #             classes[idx]
-    #         )
-    #         if label is not None:
-    #             object_label = object_label.at[pos].set(label)
-    #         else:
-    #             label, pos = get_cell_labels(new_minX, new_maxX, new_minY, new_maxY, classes[0])
-    #             if label is not None:
-    #                 object_label = object_label.at[pos].set(label)
-
-    
-    #     filepath    = images_path / filename
-
-    #     df.add(filepath, object_label)
 
     sampler = grain.IndexSampler(
         num_records     = len(df),
