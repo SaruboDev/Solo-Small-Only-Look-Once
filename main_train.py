@@ -253,7 +253,7 @@ y = xy[:, 1:, :, :]
 w = wh[:, :1, :, :]
 h = wh[:, 1:, :, :]
 
-# 1) Ottengo x, y idx with meshgrid
+# Obtaining x, y idx with meshgrid
 y_idx, x_idx = jnp.meshgrid(
     jnp.arange(grid_size_y), jnp.arange(grid_size_x),
     indexing = "ij"
