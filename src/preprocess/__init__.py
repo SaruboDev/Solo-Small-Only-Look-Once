@@ -1,1 +1,0 @@
-from .variables import grab_variables
