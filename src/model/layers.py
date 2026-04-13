@@ -27,7 +27,7 @@ class CNNBlock(eqx.Module):
 
         self.conv3x3 = layers.Conv2d( # Divides
             in_channels     = input_size,
-            out_channels    = out_c_one,    # The information, usually x2 than input if stride 2
+            out_channels    = out_c_one,    # The information, usually x2 than input if stride 2 but idk
             kernel_size     = 3,            # How many close cells a cell can look in.
             stride          = 2,            # Downscale value, if 1 just extracts features.
             padding         = 1,
