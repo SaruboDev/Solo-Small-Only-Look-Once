@@ -75,15 +75,7 @@ def loss_fn(logits, labels):
     labels_coords    = labels[:, :coords_n, :, :]
     labels_class     = labels[:, coords_n:, :, :]
 
-    # locality = jnp.array([center_img_x, center_img_y, w, h, 1.0])
-    # ohe = jnp.zeros(shape = (n_classes_predict,)).at[class_number].set(1.0)
-    # labels = jnp.concatenate([jnp.tile(locality, bbox), ohe], axis = 0)
-    # if 1.0 in locality is 0.0 -> everything is zero.
-    # object_label = jnp.zeros(shape = (grid_size, grid_size, out_classes))
-    # object_label = object_label.at[pos].set(label)
-    # labels -> object_label
-
-    # NOTE: The IOU filter for the bbox is missing.
+    # NOTE: The IOU filter for the bbox is missing. I don't really need it for this demo
     labels_coords_res = jnp.reshape(
         labels_coords,
         shape = (
@@ -95,7 +87,7 @@ def loss_fn(logits, labels):
         shape = (preds_coords.shape[0], bbox, 5, preds_coords.shape[-2], preds_coords.shape[-1])
     )
 
-    # Now we only grab the confidence levels.
+    # Now I only grab the confidence levels.
     mask_obj = labels_coords_res[..., -1, :, :].astype(bool) # The last index of the third dim.
     mask_obj = mask_obj[..., None, :, :]
     mask_noobj = ~mask_obj
@@ -112,7 +104,6 @@ def loss_fn(logits, labels):
     label_wh = labels_coords_res[..., 2:4, :, :]
     wh_loss = (
         ((optax.l2_loss(
-            # jnp.sqrt(jnp.maximum(pred_wh, 1e-10)), jnp.sqrt(jnp.maximum(label_wh, 1e-10))
             pred_wh, label_wh
         ) * mask_obj).sum()
         ) / num_objects) * lambda_obj
@@ -120,13 +111,13 @@ def loss_fn(logits, labels):
     pred_c = preds_coords_res[..., 4:5, :, :]
     label_c = labels_coords_res[..., 4:5, :, :]
     c_loss_1 = optax.sigmoid_focal_loss(pred_c, label_c)
-    c_loss_2 = ((c_loss_1 * mask_noobj).sum() / num_noobjects) * lambda_noobj # ((c_loss_1 * mask_noobj).sum() / num_objects) * lambda_noobj
+    c_loss_2 = ((c_loss_1 * mask_noobj).sum() / num_noobjects) * lambda_noobj
 
     c_loss_1 = ((c_loss_1 * mask_obj).sum() / num_objects) * lambda_obj
 
     classes_loss = optax.sigmoid_binary_cross_entropy(preds_class, labels_class)
     classes_loss = classes_loss.mean(axis = 1, keepdims = True)
-    classes_loss = classes_loss * mask_obj.any(axis = 1)[:, None, :, :] # added dim
+    classes_loss = classes_loss * mask_obj.any(axis = 1)[:, None, :, :]
     classes_loss = (classes_loss.sum() / num_objects) * classes_lambda
 
     loss = xy_loss + wh_loss + c_loss_1 + c_loss_2 + classes_loss
@@ -149,10 +140,6 @@ def compute_loss(model, data, key):
     # inputs shape is (batch_size,c, h, w)
     logits = jax.vmap(model)(inputs)
 
-    # labels = jnp.transpose(labels, (0, 3, 1, 2))
-
-    # logits is of shape (2, 35, S, S)
-
     loss = loss_fn(logits, labels)
 
     return loss
@@ -170,6 +157,7 @@ def make_steps(model, data, opt_state, optimizer, train_key):
 lr_schedule = optax.schedules.warmup_cosine_decay_schedule(
     init_value = 0.0, peak_value = 0.001, end_value = 0.00001, warmup_steps = steps * 2, decay_steps = steps * (epochs // 1.5)
 )
+# Used to test the architecture. NOTE: Write a test environment to avoid commenting-uncommenting each time.
 # lr_schedule = optax.schedules.warmup_cosine_decay_schedule(
 #     init_value = 0.0, peak_value = 0.001, end_value = 0.00001, warmup_steps = 2, decay_steps = 10
 # )
@@ -337,9 +325,9 @@ y_min = real_y - (real_h / 2)
 x_max = real_x + (real_w / 2)
 y_max = real_y + (real_h / 2)
 
-print(f"Confidenza Max: {jnp.max(c_no_bbox)}")
-print(f"Confidenza Min: {jnp.min(c_no_bbox)}")
-print(f"Confidenza Media: {jnp.mean(c_no_bbox)}")
+print(f"Confidence Max: {jnp.max(c_no_bbox)}")
+print(f"Confidence Min: {jnp.min(c_no_bbox)}")
+print(f"Confidence Mean: {jnp.mean(c_no_bbox)}")
 
 for i in range(len(center_class)):
     pt1 = (int(x_min[i]), int(y_min[i]))
@@ -354,5 +342,3 @@ for i in range(len(center_class)):
 cv2.imshow("Risultato", resized)
 cv2.waitKey(0)
 cv2.destroyAllWindows()
-
-# NOTE: Do Data Augmentation on the dataset, then continue the training.
