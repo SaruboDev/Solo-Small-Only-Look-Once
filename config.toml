@@ -1,0 +1,16 @@
+[images]
+ann_path = "VOC2012/Annotations"
+img_path = "VOC2012/JPEGImages"
+
+image_w     = 896
+image_h     = 512
+
+[model]
+batch_size      = 16
+bbox            = 1
+grid_size_x     = 14
+grid_size_y     = 8
+epochs          = 10
+out_classes     = 25
+lambda_obj      = 5.0
+lambda_noobj    = 0.5
