@@ -94,7 +94,7 @@ def summary(model):
         s = round(size_bytes / p, 2)
         return "%s %s" % (s, size_name[i])
 
-    # We finally print the Total Parameters, Trainable Parameters and Non-Trainable Parameters
+    # Finally prints the Total Parameters, Trainable Parameters and Non-Trainable Parameters
     print(f"Total Params: {"{:,}".format(param_count)} - {__convert_size(total_size)}")
     print(f"Trainable Params: {"{:,}".format(trainable_count)} - {__convert_size(trainable_size)}")
     print(f"Non-trainable Params: {"{:,}".format(param_count - trainable_count)} - {__convert_size(nonTrainable_size)}")
